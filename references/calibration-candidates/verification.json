@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "personal_style_approval": "PENDING_USER_APPROVAL",
+  "kicad_version": "10.0.5",
+  "font_mm": 1.27,
+  "all_native_signatures_match_expected": true,
+  "caps_native_parts_and_nets_equal": true,
+  "caps_expected_nets": {
+    "/RETURN": [
+      [
+        "C1",
+        "2"
+      ],
+      [
+        "C2",
+        "2"
+      ]
+    ],
+    "/SUPPLY": [
+      [
+        "C1",
+        "1"
+      ],
+      [
+        "C2",
+        "1"
+      ]
+    ]
+  },
+  "long_resistor_native_parts_and_nets_equal": true,
+  "resistor_expected_nets": {
+    "/BOTTOM": [
+      [
+        "R1",
+        "2"
+      ]
+    ],
+    "/TOP": [
+      [
+        "R1",
+        "1"
+      ]
+    ]
+  },
+  "visual_checks": "NOT_AUTOMATED: view the current native renders; no glyph-fit or compactness score",
+  "png_panels_generated": true,
+  "panel_sha256": {
+    "capacitor-spacing.png": "817f808dfb621df376123c29725cc4547816ed7ae1007db5b6eaae0ee1e30638",
+    "resistor-fields.png": "5b3eb5646e6322f7f79fc9e5e5cba593351e301ce1eaf4281b80f1a4e7e771bc"
+  },
+  "source_sha256": {
+    "caps_loose": "167fc299d8a30b525174aa7de677cb18932b0b253a0ee9292ccee5b2598d2dd8",
+    "caps_compact": "58b39074bd6d8a584a535579d07c6005309db7bba9567836eba19c391e405bdd",
+    "caps_crowded": "13b8896f03a801a817aa095feecab5dabe41d75f07f06dc1592d71c146aaecb2",
+    "resistor_short_inside": "fa388862403f8ef1ffd12d9ecd6709da3fea03e304dc86b7fbf22ed085a31be2",
+    "resistor_long_inside": "29bf1dce74d1cab1214ad32a4e146b484cbbcfa4f5733d6ec0fc9c9e5718bfbd",
+    "resistor_long_outside": "e73e4a2fad4c0c9cd0858d5b6410d72dc95e4cba97bcecce06e8498b24bc1cea"
+  }
+}

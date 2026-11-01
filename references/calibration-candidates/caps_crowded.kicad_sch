@@ -1,0 +1,173 @@
+(kicad_sch (version 20250114) (generator "eeschema") (uuid "ee450628-65eb-52d3-b26c-af9d0328e1ce") (paper "A4")
+(lib_symbols (symbol "Device:C"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0.254)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "C"
+			(at 0.635 2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "C"
+			(at 0.635 -2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 0.9652 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "cap capacitor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "C_*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "C_0_1"
+			(polyline
+				(pts
+					(xy -2.032 0.762) (xy 2.032 0.762)
+				)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.032 -0.762) (xy 2.032 -0.762)
+				)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "C_1_1"
+			(pin passive line
+				(at 0 3.81 270)
+				(length 2.794)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 -3.81 90)
+				(length 2.794)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	))
+(symbol (lib_id "Device:C") (at 30.48 30.48 0) (unit 1) (in_bom yes) (on_board yes) (dnp no) (uuid "f3944891-a670-5855-9cca-ecabd63bef78")
+(property "Reference" "C1" (at 31.18 28.580000000000002 0) (effects (font (size 1.27 1.27)) (justify left)))
+(property "Value" "100nF" (at 31.18 32.480000000000004 0) (effects (font (size 1.27 1.27)) (justify left)))
+(property "Footprint" "" (at 30.48 30.48 0) (hide yes) (effects (font (size 1.27 1.27))))
+(property "Datasheet" "" (at 30.48 30.48 0) (hide yes) (effects (font (size 1.27 1.27))))
+(pin "1" (uuid "d826f2ff-55f8-57b6-b877-3d0df9ad093e")) (pin "2" (uuid "96d8374b-bea7-598a-ab16-d8f7ba7de086")) (instances (project "caps_crowded" (path "/ee450628-65eb-52d3-b26c-af9d0328e1ce" (reference "C1") (unit 1)))))
+(symbol (lib_id "Device:C") (at 34.29 30.48 0) (unit 1) (in_bom yes) (on_board yes) (dnp no) (uuid "eccde661-89e1-50f4-a035-0563dba87649")
+(property "Reference" "C2" (at 34.99 28.580000000000002 0) (effects (font (size 1.27 1.27)) (justify left)))
+(property "Value" "1uF" (at 34.99 32.480000000000004 0) (effects (font (size 1.27 1.27)) (justify left)))
+(property "Footprint" "" (at 34.29 30.48 0) (hide yes) (effects (font (size 1.27 1.27))))
+(property "Datasheet" "" (at 34.29 30.48 0) (hide yes) (effects (font (size 1.27 1.27))))
+(pin "1" (uuid "2abba47a-302a-5522-9b29-1e21b0a74d0e")) (pin "2" (uuid "9f9f6b2c-3272-56d3-a08c-bc38b16a2c90")) (instances (project "caps_crowded" (path "/ee450628-65eb-52d3-b26c-af9d0328e1ce" (reference "C2") (unit 1)))))
+(wire (pts (xy 30.48 26.67) (xy 34.29 26.67)) (stroke (width 0) (type default)) (uuid "0ed75d2f-658c-5f2e-9869-82a8c1a8ced5"))
+(wire (pts (xy 30.48 34.29) (xy 34.29 34.29)) (stroke (width 0) (type default)) (uuid "41cc56c3-10ea-5c0f-9409-53664488f9dc"))
+(label "SUPPLY" (at 30.48 26.67 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "09aa3869-f01a-50d7-8815-c475452171e6"))
+(label "RETURN" (at 30.48 34.29 0) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "5e19782f-3411-5720-b726-fa5ba191c2dd"))
+(sheet_instances (path "/" (page "1"))) (embedded_fonts no))
