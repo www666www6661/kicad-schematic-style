@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "name": "mos-driver",
+  "project_id": "8692bb0e-6265-44da-ad14-3cedc53d6d7e",
+  "libraries": {},
+  "paper": "A5",
+  "groups": [
+    {"id": "entry", "origin": [43.18, 63.5]},
+    {"id": "channel1", "origin": [86.36, 73.66]},
+    {"id": "channel2", "origin": [132.08, 73.66]}
+  ],
+  "symbols": [
+    {
+      "id": "c1", "ref": "C1", "lib_id": "Device:C", "value": "100n",
+      "group": "entry", "at": [0, 0],
+      "fields": {"Reference": {"layout": "left"}, "Value": {"layout": "left"}}
+    },
+    {
+      "id": "c2", "ref": "C2", "lib_id": "Device:C", "value": "1u",
+      "group": "entry", "attach": {"pin": "1", "to": {"pin": ["c1", "1"]}, "offset": [5.08, 0]},
+      "fields": {"Reference": {"layout": "right"}, "Value": {"layout": "right"}}
+    },
+    {"id": "entry_vcc", "ref": "#PWR01", "lib_id": "power:+5V", "group": "entry", "attach": {"pin": "1", "to": {"pin": ["c1", "1"]}}},
+    {"id": "entry_gnd", "ref": "#PWR02", "lib_id": "power:GND", "group": "entry", "attach": {"pin": "1", "to": {"pin": ["c1", "2"]}}},
+    {
+      "id": "q1", "ref": "Q1", "lib_id": "Transistor_FET:2N7002",
+      "group": "channel1", "at": [0, 0],
+      "fields": {"Reference": {"layout": "right"}, "Value": {"layout": "right"}}
+    },
+    {
+      "id": "load1", "ref": "R1", "lib_id": "Device:R", "value": "1k",
+      "group": "channel1", "attach": {"pin": "2", "to": {"pin": ["q1", "3"]}},
+      "fields": {"Reference": {"visible": false}, "Value": {"layout": "inside"}}
+    },
+    {
+      "id": "gate1", "ref": "R2", "lib_id": "Device:R", "value": "100", "rotation": 90,
+      "group": "channel1", "attach": {"pin": "2", "to": {"pin": ["q1", "1"]}, "offset": [-7.62, 0]},
+      "fields": {"Reference": {"visible": false}, "Value": {"layout": "inside"}}
+    },
+    {
+      "id": "bias1", "ref": "R3", "lib_id": "Device:R", "value": "100k", "rotation": 270,
+      "group": "channel1", "attach": {"pin": "1", "to": {"pin": ["q1", "1"]}, "offset": [-2.54, -7.62]},
+      "fields": {"Reference": {"visible": false}, "Value": {"layout": "inside"}}
+    },
+    {
+      "id": "clamp1", "ref": "D1", "lib_id": "Device:D_Zener", "value": "BZX84C3V3", "rotation": 270,
+      "group": "channel1", "attach": {"pin": "1", "to": {"pin": ["q1", "1"]}, "offset": [-2.54, 0]},
+      "properties": {"Description": "3.3 V gate-source Zener clamp; functional two-terminal symbol", "Datasheet": "", "Footprint": ""},
+      "fields": {"Reference": {"layout": "left"}, "Value": {"layout": "left"}}
+    },
+    {"id": "vcc1", "ref": "#PWR03", "lib_id": "power:+5V", "group": "channel1", "attach": {"pin": "1", "to": {"pin": ["load1", "1"]}}},
+    {"id": "bias_gnd1", "ref": "#PWR04", "lib_id": "power:GND", "group": "channel1", "attach": {"pin": "1", "to": {"pin": ["bias1", "2"]}}},
+    {"id": "gnd1", "ref": "#PWR05", "lib_id": "power:GND", "group": "channel1", "attach": {"pin": "1", "to": {"x": {"pin": ["q1", "2"]}, "y": {"pin": ["clamp1", "2"]}}}},
+    {
+      "id": "q2", "ref": "Q2", "lib_id": "Transistor_FET:2N7002",
+      "group": "channel2", "at": [0, 0],
+      "fields": {"Reference": {"layout": "right"}, "Value": {"layout": "right"}}
+    },
+    {
+      "id": "load2", "ref": "R4", "lib_id": "Device:R", "value": "1k",
+      "group": "channel2", "attach": {"pin": "2", "to": {"pin": ["q2", "3"]}},
+      "fields": {"Reference": {"visible": false}, "Value": {"layout": "inside"}}
+    },
+    {
+      "id": "gate2", "ref": "R5", "lib_id": "Device:R", "value": "100", "rotation": 90,
+      "group": "channel2", "attach": {"pin": "2", "to": {"pin": ["q2", "1"]}, "offset": [-7.62, 0]},
+      "fields": {"Reference": {"visible": false}, "Value": {"layout": "inside"}}
+    },
+    {
+      "id": "bias2", "ref": "R6", "lib_id": "Device:R", "value": "100k", "rotation": 270,
+      "group": "channel2", "attach": {"pin": "1", "to": {"pin": ["q2", "1"]}, "offset": [-2.54, -7.62]},
+      "fields": {"Reference": {"visible": false}, "Value": {"layout": "inside"}}
+    },
+    {
+      "id": "clamp2", "ref": "D2", "lib_id": "Device:D_Zener", "value": "BZX84C3V3", "rotation": 270,
+      "group": "channel2", "attach": {"pin": "1", "to": {"pin": ["q2", "1"]}, "offset": [-2.54, 0]},
+      "properties": {"Description": "3.3 V gate-source Zener clamp; functional two-terminal symbol", "Datasheet": "", "Footprint": ""},
+      "fields": {"Reference": {"layout": "left"}, "Value": {"layout": "left"}}
+    },
+    {"id": "vcc2", "ref": "#PWR06", "lib_id": "power:+5V", "group": "channel2", "attach": {"pin": "1", "to": {"pin": ["load2", "1"]}}},
+    {"id": "bias_gnd2", "ref": "#PWR07", "lib_id": "power:GND", "group": "channel2", "attach": {"pin": "1", "to": {"pin": ["bias2", "2"]}}},
+    {"id": "gnd2", "ref": "#PWR08", "lib_id": "power:GND", "group": "channel2", "attach": {"pin": "1", "to": {"x": {"pin": ["q2", "2"]}, "y": {"pin": ["clamp2", "2"]}}}}
+  ],
+  "wires": [
+    {"id": "entry-vcc", "points": [{"pin": ["c1", "1"]}, {"pin": ["c2", "1"]}]},
+    {"id": "entry-gnd", "points": [{"pin": ["c1", "2"]}, {"pin": ["c2", "2"]}]},
+    {"id": "gate1", "points": [{"pin": ["gate1", "2"]}, {"pin": ["q1", "1"]}]},
+    {"id": "bias1", "points": [{"pin": ["bias1", "1"]}, {"pin": ["clamp1", "1"]}]},
+    {"id": "return1", "points": [{"pin": ["clamp1", "2"]}, {"pin": ["gnd1", "1"]}, {"pin": ["q1", "2"]}]},
+    {"id": "gate2", "points": [{"pin": ["gate2", "2"]}, {"pin": ["q2", "1"]}]},
+    {"id": "bias2", "points": [{"pin": ["bias2", "1"]}, {"pin": ["clamp2", "1"]}]},
+    {"id": "return2", "points": [{"pin": ["clamp2", "2"]}, {"pin": ["gnd2", "1"]}, {"pin": ["q2", "2"]}]}
+  ],
+  "labels": [
+    {"id": "pwm1", "name": "PWM1", "at": {"pin": ["gate1", "1"]}, "kind": "global", "role": "input", "side": "left"},
+    {"id": "pwm2", "name": "PWM2", "at": {"pin": ["gate2", "1"]}, "kind": "global", "role": "input", "side": "left"}
+  ],
+  "supports": [
+    {"id": "input-bypass", "members": ["c1", "c2"], "serves": [{"pin": ["load1", "1"]}, {"pin": ["load2", "1"]}], "role": "Shared supply-entry bypass across +5V and GND"},
+    {"id": "gate-drive1", "members": ["gate1"], "serves": [{"pin": ["q1", "1"]}], "role": "Series gate drive from PWM1"},
+    {"id": "bias1", "members": ["bias1"], "serves": [{"pin": ["q1", "1"]}, {"pin": ["q1", "2"]}], "role": "Gate-source pull-down"},
+    {"id": "clamp1", "members": ["clamp1"], "serves": [{"pin": ["q1", "1"]}, {"pin": ["q1", "2"]}], "role": "Gate-source Zener clamp, cathode at gate"},
+    {"id": "gate-drive2", "members": ["gate2"], "serves": [{"pin": ["q2", "1"]}], "role": "Series gate drive from PWM2"},
+    {"id": "bias2", "members": ["bias2"], "serves": [{"pin": ["q2", "1"]}, {"pin": ["q2", "2"]}], "role": "Gate-source pull-down"},
+    {"id": "clamp2", "members": ["clamp2"], "serves": [{"pin": ["q2", "1"]}, {"pin": ["q2", "2"]}], "role": "Gate-source Zener clamp, cathode at gate"}
+  ],
+  "read_chains": [
+    ["entry_vcc", "c1", "c2", "entry_gnd"],
+    ["gate1", "q1", "load1"],
+    ["vcc1", "load1", "q1", "gnd1"],
+    ["gate2", "q2", "load2"],
+    ["vcc2", "load2", "q2", "gnd2"]
+  ],
+  "expected_nets": [
+    {"name": "+5V", "pins": [["load1", "1"], ["load2", "1"], ["c1", "1"], ["c2", "1"]]},
+    {"name": "GND", "pins": [["q1", "2"], ["bias1", "2"], ["clamp1", "2"], ["q2", "2"], ["bias2", "2"], ["clamp2", "2"], ["c1", "2"], ["c2", "2"]]},
+    {"pins": [["q1", "1"], ["gate1", "2"], ["bias1", "1"], ["clamp1", "1"]]},
+    {"pins": [["q2", "1"], ["gate2", "2"], ["bias2", "1"], ["clamp2", "1"]]},
+    {"pins": [["q1", "3"], ["load1", "2"]]},
+    {"pins": [["q2", "3"], ["load2", "2"]]},
+    {"name": "PWM1", "pins": [["gate1", "1"]]},
+    {"name": "PWM2", "pins": [["gate2", "1"]]}
+  ]
+}

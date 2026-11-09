@@ -6,7 +6,7 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "packet_id": {
       "type": "string",
@@ -139,6 +139,30 @@
             "evidence"
           ]
         },
+        "pagination": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "pass",
+                "fail",
+                "unverified",
+                "not_applicable"
+              ],
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "status",
+            "evidence"
+          ]
+        },
         "paper": {
           "type": "object",
           "additionalProperties": false,
@@ -168,8 +192,64 @@
         "functional_reading",
         "geometry",
         "compactness",
+        "pagination",
         "paper"
       ]
+    },
+    "space_checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "within_core",
+              "between_cores",
+              "across_sheets",
+              "paper_trial"
+            ]
+          },
+          "anchors": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "observation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "retained",
+              "change_needed",
+              "unverified"
+            ]
+          },
+          "action_or_constraint": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "page",
+          "level",
+          "anchors",
+          "observation",
+          "disposition",
+          "action_or_constraint"
+        ]
+      }
     },
     "findings": {
       "type": "array",
@@ -187,6 +267,7 @@
               "functional_reading",
               "geometry",
               "compactness",
+              "pagination",
               "paper"
             ],
             "minLength": 1
@@ -221,6 +302,37 @@
         ]
       }
     },
+    "rechecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "resolved",
+              "open",
+              "not_applicable",
+              "unverified"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "finding_id",
+          "status",
+          "evidence"
+        ]
+      }
+    },
     "unverified": {
       "type": "array",
       "items": {
@@ -242,7 +354,9 @@
     "viewed_images",
     "isolation",
     "assessments",
+    "space_checks",
     "findings",
+    "rechecks",
     "unverified",
     "probe_considered"
   ]

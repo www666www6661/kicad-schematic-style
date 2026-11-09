@@ -23,7 +23,7 @@ import style_probe
 
 ROOT = Path(__file__).resolve().parents[1]
 RULES = ("drawing-conventions.md", "functional-layout.md")
-DIMENSIONS = ("functional_reading", "geometry", "compactness", "paper")
+DIMENSIONS = ("functional_reading", "geometry", "compactness", "paper", "pagination")
 EXIT_CODES = {"AWAITING_REVIEW": 0, "REVIEW_ACCEPTED": 0,
               "CHANGES_REQUESTED": 1, "UNVERIFIED": 2, "STALE": 3}
 
@@ -45,6 +45,92 @@ def within(root, relative):
     if root.resolve() not in path.parents:
         raise ValueError("Packet path escapes its root: " + str(relative))
     return path
+
+
+def packet_digest(gate):
+    # Prompt and dispatch depend on packet_id, so prepare adds their hashes afterward.
+    committed = {key: value for key, value in gate.items() if key != "packet_id"}
+    committed["files"] = {name: digest for name, digest in gate["files"].items()
+                          if name not in ("prompt.txt", "dispatch.json")}
+    return hashlib.sha256(electrical.canonical(committed).encode()).hexdigest()
+
+
+def tracking_issues(review, previous_findings, carrying_history=False):
+    issues = []
+    findings = {item["id"]: item for item in review["findings"]}
+    if len(findings) != len(review["findings"]):
+        issues.append("Current finding IDs are not unique")
+    finding_categories = {item["category"] for item in review["findings"]}
+    for category, assessment in review["assessments"].items():
+        if assessment["status"] == "fail" and category not in finding_categories:
+            issues.append("Failed assessment needs a same-category finding: " + category)
+    previous = {item["id"]: item for item in previous_findings}
+    rechecks = {item["finding_id"]: item for item in review.get("rechecks", [])}
+    if len(rechecks) != len(review.get("rechecks", [])):
+        issues.append("Recheck finding IDs are not unique")
+    if previous.keys() - rechecks.keys():
+        issues.append("Previous findings are missing rechecks")
+    if rechecks.keys() - previous.keys():
+        issues.append("Recheck references an unknown previous finding")
+    for finding_id, recheck in rechecks.items():
+        previous_finding = previous.get(finding_id)
+        if recheck["status"] == "unverified":
+            if not carrying_history:
+                issues.append("Previous finding recheck is unverified: " + finding_id)
+            elif previous_finding and findings.get(finding_id, {}).get("category") != previous_finding["category"]:
+                issues.append("Unverified recheck must retain the previous finding: " + finding_id)
+        elif recheck["status"] == "open" and previous_finding:
+            category = previous_finding["category"]
+            if findings.get(finding_id, {}).get("category") != category or review["assessments"][category]["status"] != "fail":
+                issues.append("Open recheck needs the same finding and failed category: " + finding_id)
+        elif recheck["status"] in ("resolved", "not_applicable") and finding_id in findings:
+            issues.append("Closed recheck remains in current findings: " + finding_id)
+    finding_pages = {(item["page"], item["category"]) for item in review["findings"]}
+    space_categories = {"across_sheets": "pagination", "paper_trial": "paper"}
+    changes = [(item, space_categories.get(item["level"], "compactness"))
+               for item in review.get("space_checks", []) if item["disposition"] == "change_needed"]
+    for category in sorted({category for _, category in changes}):
+        if review["assessments"].get(category, {}).get("status") != "fail":
+            issues.append(f"Space changes require a failed {category} assessment")
+    for item, category in changes:
+        if (item["page"], category) not in finding_pages:
+            issues.append(f"Space change needs a {category} finding: page {item['page']}")
+    return issues
+
+
+def load_previous_review(output, source, scope, affected_refs):
+    """Read only frozen reviewer evidence; live inputs may have changed for repairs."""
+    output = Path(output).resolve()
+    required = ("gate.json", "review.json", "invocation.json", "review-report.schema.json")
+    if any(not (output / name).is_file() for name in required):
+        raise ValueError("Previous review needs a completed report and invocation")
+    gate = read_json(output / "gate.json")
+    if gate.get("schema") != 1:
+        raise ValueError("Unsupported previous gate manifest")
+    if packet_digest(gate) != gate["packet_id"]:
+        raise ValueError("Previous gate manifest changed")
+    for name, expected in gate["files"].items():
+        path = within(output, name)
+        if not path.is_file() or sha(path) != expected:
+            raise ValueError("Previous review frozen evidence changed: " + name)
+    if Path(gate["source"]).resolve() != source or gate["scope"] != scope or set(gate["affected_refs"]) != set(affected_refs):
+        raise ValueError("Previous review belongs to another source or scope")
+    raw = (output / "review.json").read_bytes()
+    review = json.loads(raw.decode("utf-8-sig"))
+    validate(review, read_json(output / "review-report.schema.json"))
+    receipt = read_json(output / "invocation.json")
+    if any(review[key] != gate[key] for key in ("packet_id", "stage", "source_sha256", "pdf_sha256")):
+        raise ValueError("Previous report does not match its frozen packet")
+    digest = hashlib.sha256(raw).hexdigest()
+    if receipt.get("packet_id") != gate["packet_id"] or receipt.get("report_sha256") != digest or type(receipt.get("returncode")) is not int or receipt["returncode"] != 0:
+        raise ValueError("Previous reviewer invocation failed or report changed")
+    if len({item["id"] for item in review["findings"]}) != len(review["findings"]):
+        raise ValueError("Previous finding IDs are not unique")
+    issues = tracking_issues(review, gate.get("previous_findings", []), carrying_history=True)
+    if issues:
+        raise ValueError("Previous review tracking is incomplete: " + "; ".join(issues))
+    return raw, {"packet_id": gate["packet_id"], "source_sha256": gate["source_sha256"],
+                 "report_sha256": digest}, review["findings"]
 
 
 def render(pdf, directory):
@@ -76,7 +162,7 @@ def render(pdf, directory):
 
 def prepare(source, requirements, output, cli, stage="final", scope="whole",
             affected_refs=(), before=None, dependencies=(), skill_root=ROOT,
-            paper_candidate=None, fixed_paper=False):
+            paper_candidate=None, fixed_paper=False, previous_review=None):
     # Fail before creating evidence if a required local runtime is absent.
     import pymupdf  # noqa: F401
     source, requirements, cli = (Path(p).resolve() for p in (source, requirements, cli))
@@ -86,6 +172,9 @@ def prepare(source, requirements, output, cli, stage="final", scope="whole",
         raise ValueError("Original requirements must not be empty")
     if scope == "local" and not affected_refs:
         raise ValueError("Local review requires --affected-ref")
+    previous_raw, previous, previous_findings = None, None, []
+    if previous_review:
+        previous_raw, previous, previous_findings = load_previous_review(previous_review, source, scope, affected_refs)
     if output:
         output = Path(output).resolve()
         output.mkdir(parents=True, exist_ok=False)
@@ -101,6 +190,8 @@ def prepare(source, requirements, output, cli, stage="final", scope="whole",
     packet.mkdir()
     (packet / "source").mkdir()
     (packet / "rules").mkdir()
+    if previous_raw is not None:
+        (packet / "previous-review.json").write_bytes(previous_raw)
     originals = []
     def copy_input(original, target):
         shutil.copyfile(original, target)
@@ -141,8 +232,13 @@ def prepare(source, requirements, output, cli, stage="final", scope="whole",
             if item["role"] == "schematic":
                 target = candidate_dir / Path(item["stored"]).name
                 shutil.copyfile(within(candidate, item["stored"]), target)
+                probe = target.with_suffix(".probe.json")
+                write_json(probe, style_probe.inspect(target, details=True))
                 candidate_sources.append({"path": target.relative_to(packet).as_posix(),
-                                          "sha256": item["sha256"]})
+                                          "original_name": Path(item["original"]).name,
+                                          "sha256": item["sha256"],
+                                          "probe": probe.relative_to(packet).as_posix(),
+                                          "probe_sha256": sha(probe)})
         candidate_images = render(candidate_dir / "preview.pdf", candidate_dir / "images")
         for page in candidate_images:
             page["full"] = "paper-candidate/" + page["full"]
@@ -172,11 +268,12 @@ def prepare(source, requirements, output, cli, stage="final", scope="whole",
     root_source = next(item for item in sources if item["root"])
     gate = {"schema": 1, "stage": stage, "scope": scope, "source": str(source),
             "affected_refs": list(affected_refs), "paper_exemption": exemption,
+            "previous_review": previous, "previous_findings": previous_findings,
             "candidate_images": candidate_images, "paper_comparison": paper_check,
             "source_sha256": root_source["sha256"], "pdf_sha256": sha(packet / "preview.pdf"),
             "files": frozen, "originals": originals, "snapshot_gaps": gaps,
             "pages": images, "dependencies": [str(Path(p).resolve()) for p in dependencies]}
-    gate["packet_id"] = hashlib.sha256(electrical.canonical(gate).encode()).hexdigest()
+    gate["packet_id"] = packet_digest(gate)
     template = (output / "reviewer-prompt.md").read_text(encoding="utf-8")
     replacements = {"PACKET_ROOT": str(packet), "PACKET_ID": gate["packet_id"],
                     "STAGE": stage, "SCOPE": scope, "SOURCE_SHA256": gate["source_sha256"],
@@ -207,6 +304,8 @@ def integrity(output):
     if gate.get("schema") != 1:
         raise ValueError("Unsupported gate manifest")
     damaged, stale = [], []
+    if packet_digest(gate) != gate["packet_id"]:
+        damaged.append("gate.json")
     for name, expected in gate["files"].items():
         path = within(output, name)
         if not path.is_file() or sha(path) != expected:
@@ -329,15 +428,35 @@ def finalize(output, report=None, reviewer_id=None):
             for finding in review["findings"]:
                 if finding["page"] not in page_numbers:
                     result["review_issues"].append("Finding references an unknown page")
-            required = DIMENSIONS if gate["stage"] == "final" else DIMENSIONS[:3]
+            required = tuple(name for name in DIMENSIONS if gate["stage"] == "final" or name != "paper")
             assessments = review["assessments"]
+            result["review_issues"].extend(tracking_issues(review, gate.get("previous_findings", [])))
+            space_checks = review["space_checks"]
+            space_levels = ("within_core", "between_cores") if gate["scope"] == "whole" else ("within_core",)
+            observed_spaces = {(item["page"], item["level"]) for item in space_checks}
+            if any(item["page"] not in page_numbers for item in space_checks):
+                result["review_issues"].append("Space check references an unknown page")
+            for page in sorted(page_numbers):
+                for level in space_levels:
+                    if (page, level) not in observed_spaces:
+                        result["review_issues"].append(f"Missing space observation: page {page}, {level}")
+            whole_multi_page = gate["scope"] == "whole" and len(page_numbers) > 1
+            if whole_multi_page and not any(item["level"] == "across_sheets" for item in space_checks):
+                result["review_issues"].append("Missing space observation: across_sheets")
+            if any(item["disposition"] == "unverified" for item in space_checks):
+                result["review_issues"].append("Space observation is unverified")
             if any(assessments[k]["status"] == "unverified" for k in required):
                 result["review_issues"].append("Required visual assessment is unverified")
             if any(assessments[k]["status"] == "not_applicable" for k in DIMENSIONS[:3]):
                 result["review_issues"].append("Functional, geometry and compactness checks cannot be skipped")
+            if whole_multi_page and assessments["pagination"]["status"] == "not_applicable":
+                result["review_issues"].append("Pagination cannot be skipped for a whole multi-page review")
             if assessments["paper"]["status"] == "not_applicable" and not gate["paper_exemption"]:
                 result["review_issues"].append("Paper exception is not applicable to this task")
-            if gate["stage"] == "final" and not gate["paper_exemption"] and assessments["paper"]["status"] == "pass":
+            if gate["stage"] == "final" and gate["scope"] == "whole" and not gate["paper_exemption"] and assessments["paper"]["status"] == "pass":
+                for page in sorted(page_numbers):
+                    if (page, "paper_trial") not in observed_spaces:
+                        result["review_issues"].append(f"Missing paper trial observation: page {page}")
                 if not gate["candidate_images"]:
                     result["review_issues"].append("Adjacent paper candidate evidence is missing")
                 elif any(p["full"] not in images or not {d["path"] for d in p["details"]} <= images for p in gate["candidate_images"]):
@@ -471,6 +590,7 @@ def main(argv=None):
         sub.add_argument("--scope", choices=("whole", "local"), default="whole")
         sub.add_argument("--affected-ref", action="append", default=[])
         sub.add_argument("--before", type=Path)
+        sub.add_argument("--previous-review", type=Path, help="Previous gate output containing the original independent report")
         sub.add_argument("--dependency", type=Path, action="append", default=[])
         sub.add_argument("--paper-candidate", type=Path, help="Existing frozen snapshot --pdf of the adjacent paper trial")
         sub.add_argument("--fixed-paper", action="store_true", help="Only when the user explicitly fixes the paper format")
@@ -489,7 +609,8 @@ def main(argv=None):
         if args.command in ("prepare", "run"):
             result = prepare(args.source, args.requirements, args.output, args.kicad_cli,
                              args.stage, args.scope, args.affected_ref, args.before, args.dependency,
-                             paper_candidate=args.paper_candidate, fixed_paper=args.fixed_paper)
+                             paper_candidate=args.paper_candidate, fixed_paper=args.fixed_paper,
+                             previous_review=args.previous_review)
             if args.command == "run":
                 print(json.dumps({"status": "AWAITING_REVIEW", "output": result["output"]}), flush=True)
                 result = run_reviewer(result["output"], args.codex, args.model, args.timeout)

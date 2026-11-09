@@ -29,7 +29,7 @@ LIMITATIONS = [
     "No automatic repair; geometric/source changes require native visual review.",
     "Snapshots detect accidental artifact replacement, not adversarial manifest forgery.",
     "Capture before/after from the same project path and export context; relocated dependencies are not automatically remapped.",
-    "Native XML must expose per-unit pin inventory; unsupported exports remain UNVERIFIED.",
+    "Native XML must expose per-unit pin inventory; an empty inventory requires a resolved pinless source unit and instance. Unsupported exports remain UNVERIFIED.",
     "When labels, power/virtual symbols, hidden pins, or sheet pins exist, all native net names are retained verbatim; generated-name drift can conservatively report DIFFERENT.",
 ]
 
@@ -149,29 +149,40 @@ def inspect_sources(source):
             lib_id = first(symbol, "lib_id")
             definition = definitions.get(lib_id)
             pins = []
+            pinless = False
             virtual = ref.startswith("#") or bool(definition and child(definition, "power"))
             if definition is None or child(definition, "extends"):
                 gaps.append({"kind": "unresolved_symbol", "identity": key, "lib_id": lib_id})
             else:
                 body = first(symbol, "body_style", first(symbol, "convert", "1"))
+                groups = []
+                known_groups = not children(definition, "pin")
                 for group in children(definition, "symbol"):
                     match = re.search(r"_(\d+)_(\d+)$", group[1])
                     if not match:
+                        known_groups = False
                         if children(group, "pin"):
                             gaps.append({"kind": "unknown_pin_group", "identity": key, "group": group[1]})
                         continue
+                    groups.append((match[1], match[2]))
                     if match[1] not in ("0", unit) or match[2] not in ("0", body):
                         continue
                     for pin in children(group, "pin"):
                         pins.append({"number": first(pin, "number"), "name": first(pin, "name"),
                                      "type": pin[1], "shape": pin[2], "hidden": tail(pin, "hide") == ["yes"] or "hide" in pin,
                                      "at": tail(pin, "at"), "length": tail(pin, "length")})
+                # A missing/unrecognized unit must not masquerade as a pinless one.
+                units = {u for u, _ in groups} - {"0"}
+                bodies = {b for u, b in groups if u in ("0", unit)} - {"0"}
+                pinless = (known_groups and bool(groups) and unit in (units or {"1"})
+                           and body in (bodies or {"1"}) and not pins and not children(symbol, "pin"))
             properties = {k: v for k, v in props.items() if k != "Reference"}
             records[key] = {
                 "uuid": uuid, "sheet_path": instance_path, "reference": ref, "unit": unit,
                 "lib_id": lib_id, "virtual": virtual, "properties": properties,
                 "flags": {k: tail(symbol, k) for k in ("in_bom", "on_board", "dnp", "exclude_from_sim")},
-                "pins": sorted_nodes(pins), "at": tail(symbol, "at"), "mirror": tail(symbol, "mirror"),
+                "pins": sorted_nodes(pins), "pinless": pinless,
+                "at": tail(symbol, "at"), "mirror": tail(symbol, "mirror"),
             }
         for kind in ("wire", "junction", "no_connect", "label", "global_label", "hierarchical_label", "bus", "bus_entry"):
             for n in children(root, kind):
@@ -445,7 +456,12 @@ def read_netlist(path, model):
         physical_id = sheet.rstrip("/") + "/" + "+".join(stamps)
         source_pins = {p["number"] for record in matches.values() for p in record["pins"]}
         xml_pins = {p.get("num") for p in comp.findall("./units/unit/pins/pin")}
-        if not xml_pins:
+        xml_units = comp.findall("./units/unit")
+        pinless_inventory = (bool(matches) and not source_pins
+                             and all(record.get("pinless") is True for record in matches.values())
+                             and len(xml_units) == len(matches)
+                             and all(unit.find("pins") is not None for unit in xml_units))
+        if not xml_pins and not pinless_inventory:
             gaps.append({"kind": "xml_pin_inventory_unavailable", "reference": ref})
         elif source_pins != xml_pins:
             gaps.append({"kind": "xml_pin_inventory_mismatch", "reference": ref,

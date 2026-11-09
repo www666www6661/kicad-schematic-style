@@ -63,6 +63,24 @@ def schematic(value="1k", field_x=50, connect=True, nc=False, child=False, root=
       {extra})'''
 
 
+def pinless_definition(name="Check:MountingHole"):
+    return f'''(symbol "{name}" (in_bom no) (on_board yes)
+      (property "Reference" "H" (at 0 0 0) (effects (font (size 1 1))))
+      (property "Value" "MountingHole" (at 0 2 0) (effects (font (size 1 1))))
+      (symbol "MountingHole_0_1" (circle (center 0 0) (radius 1.27)
+        (stroke (width 0.5) (type default)) (fill (type none)))))'''
+
+
+def pinless_schematic(value="MountingHole", field_x=50):
+    return f'''(kicad_sch (version 20250114) (generator "eeschema")
+      (uuid "{ROOT}") (paper "A4") (lib_symbols {pinless_definition()})
+      (symbol (lib_id "Check:MountingHole") (at 50 50 0) (unit 1) (in_bom no) (on_board yes)
+        (dnp no) (uuid "{SYMBOL}")
+        (property "Reference" "H1" (at {field_x} 50 0) (effects (font (size 1 1))))
+        (property "Value" "{value}" (at {field_x} 52 0) (effects (font (size 1 1))))
+        (instances (project "main" (path "/{ROOT}" (reference "H1") (unit 1))))))'''
+
+
 def sheet_node(sheet=SHEET, filename="child.kicad_sch"):
     return f'''(sheet (at 80 40) (size 20 20) (uuid "{sheet}")
       (property "Sheetname" "Child" (at 80 39 0) (effects (font (size 1 1))))
@@ -101,9 +119,10 @@ def fixture_netlist(model, split=False, automatic_name="Net-(R1-Pad1)"):
         ET.SubElement(comp, "sheetpath", tstamps=record["sheet_path"])
         ET.SubElement(comp, "tstamps").text = record["uuid"]
         pins = ET.SubElement(ET.SubElement(ET.SubElement(comp, "units"), "unit", name="A"), "pins")
-        for number in ("1", "2"):
+        numbers = sorted({p["number"] for p in record["pins"]})
+        for number in numbers:
             ET.SubElement(pins, "pin", num=number)
-        groups = [["1"], ["2"]] if split else [["1", "2"]]
+        groups = [[number] for number in numbers] if split else [numbers] if numbers else []
         for index, group in enumerate(groups):
             net = ET.SubElement(nets, "net", code=str(index + 1), name=automatic_name, **{"class": "Default"})
             for number in group:
@@ -272,6 +291,122 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual("UNVERIFIED", report["status"])
         self.assertIn("xml_pin_inventory_unavailable", {g["kind"] for g in report["coverage_gaps"]})
 
+    def test_pinless_component_is_retained_and_compared(self):
+        self.source.write_text(pinless_schematic(), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        self.assertEqual([], model["coverage_gaps"])
+        self.assertTrue(next(iter(model["records"].values()))["pinless"])
+        before = self.snapshot("pinless-before", model=model)
+        exported, gaps = check.read_netlist(before / "netlist.xml", model)
+        self.assertEqual([], gaps)
+        self.assertEqual(1, len(exported["components"]))
+        self.assertEqual("H1", next(iter(exported["components"].values()))["reference"])
+        self.assertEqual([], exported["nets"])
+        self.source.write_text(pinless_schematic(field_x=65), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        after = self.snapshot("pinless-moved", model=model)
+        self.assertEqual("PASS", check.compare(before, after)["status"])
+        self.source.write_text(pinless_schematic(value="M3"), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        after = self.snapshot("pinless-changed", model=model)
+        report = check.compare(before, after)
+        self.assertEqual("DIFFERENT", report["status"])
+        for name in ("properties_and_pin_definitions", "exported_component_properties"):
+            self.assertEqual("DIFFERENT", report["dimensions"][name]["status"])
+
+    def test_empty_xml_inventory_for_pinned_source_is_unverified(self):
+        xml = ET.fromstring(fixture_netlist(self.model))
+        xml.find("./components/comp/units/unit/pins").clear()
+        xml.find("nets").clear()
+        folder = self.snapshot("empty-pinned-inventory", xml=ET.tostring(xml))
+        report = check.compare(folder, folder)
+        self.assertEqual("UNVERIFIED", report["status"])
+        self.assertIn("xml_pin_inventory_unavailable", {g["kind"] for g in report["coverage_gaps"]})
+
+    def test_pinless_to_pinned_source_change_is_detected(self):
+        self.source.write_text(pinless_schematic(), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        before = self.snapshot("pinless-before-pins", model=model)
+        text = pinless_schematic().replace(pinless_definition(),
+                                          definition().replace('"Check:R"', '"Check:MountingHole"'))
+        text = text.replace('(dnp no)', '(dnp no) ' + ' '.join(
+            f'(pin "{number}" (uuid "{uid("added-pin-" + number)}"))' for number in ("1", "2")))
+        self.source.write_text(text, encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        after = self.snapshot("pinless-after-pins", model=model)
+        report = check.compare(before, after)
+        self.assertEqual("DIFFERENT", report["status"])
+        self.assertEqual("PASS", report["dimensions"]["identity"]["status"])
+        for name in ("properties_and_pin_definitions", "exported_component_properties", "network_endpoint_sets"):
+            self.assertEqual("DIFFERENT", report["dimensions"][name]["status"])
+
+    def test_pinless_source_still_requires_complete_xml_inventory(self):
+        self.source.write_text(pinless_schematic(), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        for omission in ("units", "unit", "pins", "extra-unit"):
+            with self.subTest(omission=omission):
+                xml = ET.fromstring(fixture_netlist(model))
+                comp = xml.find("./components/comp")
+                if omission == "extra-unit":
+                    ET.SubElement(comp.find("units"), "unit", name="B")
+                else:
+                    parent = {"units": comp, "unit": comp.find("units"),
+                              "pins": comp.find("./units/unit")}[omission]
+                    parent.remove(parent.find(omission))
+                folder = self.snapshot("pinless-missing-" + omission, model=model, xml=ET.tostring(xml))
+                report = check.compare(folder, folder)
+                self.assertEqual("UNVERIFIED", report["status"])
+                self.assertIn("xml_pin_inventory_unavailable", {g["kind"] for g in report["coverage_gaps"]})
+
+    def test_pinless_source_proof_is_required(self):
+        pin = f'(pin "1" (uuid "{uid("unexpected-instance-pin")}"))'
+        pinned_definition = definition().replace('"Check:R"', '"Check:MountingHole"')
+        candidates = {
+            "instance-pin": pinless_schematic().replace('(dnp no)', '(dnp no) ' + pin),
+            "library-pin": pinless_schematic().replace(pinless_definition(), pinned_definition),
+            "invalid-unit": pinless_schematic().replace(pinless_definition(), pinned_definition).replace('(unit 1)', '(unit 2)'),
+            "invalid-body": pinless_schematic().replace('MountingHole_0_1', 'MountingHole_0_0')
+                .replace('(dnp no)', '(dnp no) (body_style 2)'),
+            "unknown-group": pinless_schematic().replace('MountingHole_0_1', 'Unknown'),
+            "missing-library": pinless_schematic().replace(pinless_definition(), ''),
+            "inherited-library": pinless_schematic().replace('(symbol "Check:MountingHole"',
+                                                             '(symbol "Check:MountingHole" (extends "Base")'),
+            "direct-library-pin": pinless_schematic().replace('(symbol "Check:MountingHole"',
+                '(symbol "Check:MountingHole" (pin passive line (at 0 0 0) (length 1) (name "~") (number "1"))'),
+        }
+        for case, source in candidates.items():
+            with self.subTest(case=case):
+                self.source.write_text(source, encoding="utf-8")
+                model, _ = check.inspect_sources(self.source)
+                self.assertFalse(next(iter(model["records"].values()))["pinless"])
+                xml = ET.fromstring(fixture_netlist(model))
+                xml.find("./components/comp/units/unit/pins").clear()
+                xml.find("nets").clear()
+                folder = self.snapshot("pinless-proof-" + case, model=model, xml=ET.tostring(xml))
+                report = check.compare(folder, folder)
+                self.assertEqual("UNVERIFIED", report["status"])
+                self.assertIn("xml_pin_inventory_unavailable", {g["kind"] for g in report["coverage_gaps"]})
+
+    def test_pinless_legacy_model_without_proof_is_unverified(self):
+        self.source.write_text(pinless_schematic(), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        next(iter(model["records"].values())).pop("pinless")
+        folder = self.snapshot("pinless-legacy", model=model)
+        report = check.compare(folder, folder)
+        self.assertEqual("UNVERIFIED", report["status"])
+        self.assertIn("xml_pin_inventory_unavailable", {g["kind"] for g in report["coverage_gaps"]})
+
+    def test_pinless_component_with_net_endpoint_is_unverified(self):
+        self.source.write_text(pinless_schematic(), encoding="utf-8")
+        model, _ = check.inspect_sources(self.source)
+        xml = ET.fromstring(fixture_netlist(model))
+        net = ET.SubElement(xml.find("nets"), "net", code="1", name="unexpected")
+        ET.SubElement(net, "node", ref="H1", pin="1")
+        folder = self.snapshot("pinless-endpoint", model=model, xml=ET.tostring(xml))
+        report = check.compare(folder, folder)
+        self.assertEqual("UNVERIFIED", report["status"])
+        self.assertIn("net_endpoint_inventory_mismatch", {g["kind"] for g in report["coverage_gaps"]})
+
     def test_duplicate_endpoint_is_unverified(self):
         xml = ET.fromstring(fixture_netlist(self.model))
         net = xml.find("./nets/net")
@@ -403,6 +538,26 @@ class EvidenceTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get("KICAD_CLI"), "Set KICAD_CLI to enable native TEMP-only smoke tests")
 class NativeTests(unittest.TestCase):
+    def test_native_pinless_component_is_captured_and_retained(self):
+        with tempfile.TemporaryDirectory(prefix="kicad-schematic-check-pinless-") as temp:
+            base = Path(temp)
+            source = base / "main.kicad_sch"
+            source.write_text(pinless_schematic(), encoding="utf-8")
+            (base / "Check.kicad_sym").write_text(
+                '(kicad_symbol_lib (version 20241209) (generator "kicad_symbol_editor") '
+                + pinless_definition("MountingHole") + ')', encoding="utf-8")
+            (base / "sym-lib-table").write_text(
+                '(sym_lib_table (version 7) (lib (name "Check") (type "KiCad") (uri "${KIPRJMOD}/Check.kicad_sym") (options "") (descr "")))', encoding="utf-8")
+            snapshot = base / "snapshot"
+            result = check.capture(source, snapshot, Path(os.environ["KICAD_CLI"]))
+            self.assertEqual("CAPTURED", result["capture_status"], result["coverage_gaps"])
+            xml = ET.parse(snapshot / "netlist.xml")
+            self.assertEqual("H1", xml.find("./components/comp").get("ref"))
+            self.assertIsNotNone(xml.find("./components/comp/units/unit/pins"))
+            self.assertEqual([], xml.findall("./components/comp/units/unit/pins/pin"))
+            report = check.compare(snapshot, snapshot)
+            self.assertEqual("PASS", report["status"], report)
+
     def test_native_explicit_net_names_follow_swapped_label_endpoints(self):
         with tempfile.TemporaryDirectory(prefix="kicad-schematic-check-names-") as temp:
             base = Path(temp)
