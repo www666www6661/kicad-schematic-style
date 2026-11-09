@@ -59,6 +59,16 @@ Expected native PDF SHA-256: `{{PDF_SHA256}}`
    orientation, and power versus signal labeling. Respect the user's valid
    preferences, including short values inside IEC resistors, hidden references,
    readable endpoint-to-endpoint connections, and normal symbol and text sizes.
+   For in-scope new or changed device/symbol/footprint selections, compare any
+   original terminal and footprint-pad evidence supplied in `requirements.md`
+   with the source symbol, using the terminal-matching rule. Do not infer package
+   completeness from signal count, a generic connector name, ERC, or matching
+   netlists. A confirmed omitted terminal is a `functional_reading` finding;
+   name the reference and source evidence. If the applicable part/package data
+   is missing, record the specific unresolved mapping in `unverified` without
+   inventing a defect or reading outside the packet. Do not presume mounting
+   or shield pins connect to ground, and do not repeat unrelated part selection
+   for a layout-only edit. This check does not certify the whole PCB footprint.
 3. Check compactness using the categories in the layout rules across the relevant
    cores, then their global combination. First inspect within-core endpoint spans,
    returns, branch pitch and fields. Separately return to the full page and examine

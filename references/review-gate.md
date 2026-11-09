@@ -19,6 +19,8 @@
 
 需要 Python、PyMuPDF、目标版本 `kicad-cli` 和已配置可运行的 Codex CLI。未指定 `--model` 时沿用用户的 CLI 模型配置，不固定模型、价格或供应商。`--requirements` 给原始功能需求和用户有效约束，不放主 agent 的自评、历史缺陷清单或聊天总结。
 
+新选或更换器件涉及辅助端子时，在 `requirements.md` 的原始资料附录中提供适用的引脚/机械图信息与封装焊盘编号摘录，注明料号、封装版本、来源及页码/文件；转录不能仅来自已选符号或作者的“已匹配”结论。审查包不会自动包含链接或 `--dependency` 指向的全部资料，复核者也不能越出包去补查。缺少相关原始证据时明确该对应关系未验证，不能以网表一致代替。
+
 ```powershell
 $styleSkillRoot = 'C:\Users\wuji\.agents\skills\kicad-schematic-style'
 python -B -X utf8 "$styleSkillRoot\scripts\review_gate.py" run 'C:\task\main.kicad_sch' --stage layout --requirements 'C:\task\requirements.md' --kicad-cli 'D:\app\KiCad\10.0\bin\kicad-cli.exe'
