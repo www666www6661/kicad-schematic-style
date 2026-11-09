@@ -30,7 +30,7 @@ git clone https://github.com/www666www6661/kicad-schematic-style.git $styleRoot
 - PyMuPDF，用于生成图片预览：`python -m pip install PyMuPDF`。
 - 独立复核默认通过已配置的 Codex CLI 运行，也支持宿主提供的独立子 agent。
 
-无需安装 KiCad 插件。当前验证环境为 Windows、Python 3.14、KiCad 10.0.5。
+推荐运行环境为 Windows、Python 3.14、KiCad 10.0.5。
 
 ## 使用
 
